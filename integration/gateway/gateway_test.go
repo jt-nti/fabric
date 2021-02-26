@@ -81,14 +81,11 @@ var _ = Describe("GatewayService", func() {
 
 			nwo.EnableCapabilities(network, "testchannel", "Application", "V2_0", orderer, org1Peer0, org2Peer0)
 
-			chaincodePath, err := filepath.Abs("../chaincode/gateway")
-			Expect(err).NotTo(HaveOccurred())
-
 			chaincode := nwo.Chaincode{
 				Name:            "gatewaycc",
 				Version:         "0.0",
-				Path:            chaincodePath,
-				Lang:            "golang",
+				Path:            components.Build("github.com/hyperledger/fabric/integration/chaincode/simple/cmd"),
+				Lang:            "binary",
 				PackageFile:     filepath.Join(testDir, "gatewaycc.tar.gz"),
 				Ctor:            `{"Args":[]}`,
 				SignaturePolicy: `AND ('Org1MSP.peer')`,
@@ -107,21 +104,44 @@ var _ = Describe("GatewayService", func() {
 			conn.Close()
 		})
 
-		Context("when I evaluate an echo transaction with the arguments [\"conga\"]", func() {
-			It("should respond with \"conga\"", func() {
+		Context("when I evaluate a respond transaction with the arguments [\"200\", \"conga message\", \"conga payload\"]", func() {
+			It("should respond with \"conga payload\"", func() {
 				ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
 				defer cancel()
 
 				signingIdentity := network.PeerUserSigner(org1Peer0, "User1")
-				txn := NewProposedTransaction(signingIdentity, "testchannel", "gatewaycc", "Echo", []byte("conga"))
+				txn := NewProposedTransaction(signingIdentity, "testchannel", "gatewaycc", "respond", []byte("200"), []byte("conga message"), []byte("conga payload"))
 
 				result, err := gatewayClient.Evaluate(ctx, txn)
 				Expect(err).NotTo(HaveOccurred())
 				expectedResult := &gateway.Result{
-					Value: []byte("conga"),
+					Value: []byte("conga payload"),
 				}
 				Expect(result.Value).To(Equal(expectedResult.Value))
 				Expect(proto.Equal(result, expectedResult)).To(BeTrue())
+			})
+		})
+
+		Context("when I submit a respond transaction with the arguments [\"200\", \"conga message\", \"conga payload\"]", func() {
+			It("should respond with \"conga payload\"", func() {
+				ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
+				defer cancel()
+
+				signingIdentity := network.PeerUserSigner(org1Peer0, "User1")
+				proposedTransaction := NewProposedTransaction(signingIdentity, "testchannel", "gatewaycc", "respond", []byte("200"), []byte("conga message"), []byte("conga payload"))
+
+				preparedTransaction, err := gatewayClient.Endorse(ctx, proposedTransaction)
+				Expect(err).NotTo(HaveOccurred())
+
+				result := preparedTransaction.GetResponse()
+				expectedResult := &gateway.Result{
+					Value: []byte("conga payload"),
+				}
+				Expect(result.Value).To(Equal(expectedResult.Value))
+				Expect(proto.Equal(result, expectedResult)).To(BeTrue())
+
+				_, err = gatewayClient.Submit(ctx, preparedTransaction)
+				Expect(err).NotTo(HaveOccurred())
 			})
 		})
 	})

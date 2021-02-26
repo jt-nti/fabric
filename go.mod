@@ -19,6 +19,7 @@ require (
 	github.com/frankban/quicktest v1.11.3 // indirect
 	github.com/fsouza/go-dockerclient v1.7.0
 	github.com/go-kit/kit v0.9.0
+	github.com/gogo/protobuf v1.3.1
 	github.com/golang/protobuf v1.3.3
 	github.com/golang/snappy v0.0.3-0.20201103224600-674baa8c7fc3 // indirect
 	github.com/gorilla/handlers v1.4.0
